@@ -1,0 +1,95 @@
+pub use dss::Dss;
+pub use ecdsa::{EcGroup, Ecdsa};
+pub use rsa::Rsa;
+
+use crate::error::Error;
+use crate::SSHBuffer;
+
+#[macro_use]
+mod utils;
+
+mod dss;
+mod ecdsa;
+mod rsa;
+
+const OPENSSH_BEGIN: &'static str = "-----BEGIN OPENSSH PRIVATE KEY-----\n";
+// no \n
+const OPENSSH_END: &'static str = "-----END OPENSSH PRIVATE KEY-----";
+const OPENSSH_AUTH_MAGIC: &'static str = "openssh-key-v1";
+
+#[derive(Debug)]
+pub enum Key {
+    Dss,
+    Rsa(Rsa),
+    Ed25519,
+    EcdsaP256(Ecdsa),
+    EcdsaP384(Ecdsa),
+    EcdsaP521(Ecdsa),
+}
+
+impl Key {
+    pub fn fingerprint(&self, hash_type: HashType) -> Result<String, Error> {
+        match &self {
+            Key::Rsa(key) => key.fingerprint(hash_type),
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => key.fingerprint(hash_type),
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key format")))
+        }
+    }
+}
+
+pub enum HashType {
+    MD5,
+    SHA1,
+    SHA256,
+}
+
+/// Private key pem format
+pub enum PEMFormat {
+    /// openssl pem
+    Openssl,
+    /// openssh new format
+    Openssh,
+}
+
+pub trait KeyExt: Sized {
+    fn from_public_pem(pem: impl AsRef<[u8]>) -> Result<Self, Error>;
+
+    fn from_private_pem(
+        pem: impl AsRef<[u8]>,
+        phase: Option<impl AsRef<[u8]>>,
+    ) -> Result<Self, Error>;
+
+    fn fingerprint(&self, hash_type: HashType) -> Result<String, Error>;
+
+    fn to_public(&self) -> Result<String, Error>;
+
+    fn to_blob(&self) -> Result<SSHBuffer, Error>;
+
+    fn private_to_pem(
+        &self,
+        format: PEMFormat,
+        phase: Option<impl AsRef<[u8]>>,
+    ) -> Result<String, Error>;
+}
+
+
+pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
+    let blob = blob.as_ref();
+    let mut buf = SSHBuffer::new(blob.to_vec())?;
+    let key_type = buf.peek_string()?;
+
+    if key_type.starts_with("ssh-rsa") {
+        let rsa = Rsa::import_public_blob(buf)?;
+        Ok(Key::Rsa(rsa))
+    } else if key_type.starts_with("ecdsa-sha2-") {
+        let ecdsa = Ecdsa::import_public_blob(buf)?;
+
+        match ecdsa.group() {
+            EcGroup::P256 => Ok(Key::EcdsaP256(ecdsa)),
+            EcGroup::P384 => Ok(Key::EcdsaP384(ecdsa)),
+            EcGroup::P521 => Ok(Key::EcdsaP521(ecdsa)),
+        }
+    } else {
+        Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key: {}", key_type)))
+    }
+}
