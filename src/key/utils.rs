@@ -13,7 +13,7 @@ macro_rules! impl_sign {
         pub fn sign(
             &self,
             type_: ::openssl::hash::MessageDigest,
-            buf: impl AsRef<[u8]>,
+            input: impl AsRef<[u8]>,
         ) -> Result<Vec<u8>, crate::error::Error> {
             let pk = match &self.inner {
                 Inner::Private(pk) => ::openssl::pkey::PKey::$pkey_from(pk.clone())?,
@@ -23,7 +23,7 @@ macro_rules! impl_sign {
             };
 
             let mut signer = ::openssl::sign::Signer::new(type_, &pk)?;
-            signer.update(buf.as_ref())?;
+            signer.update(input.as_ref())?;
             Ok(signer.sign_to_vec()?)
         }
     };

@@ -4,6 +4,7 @@ pub use rsa::Rsa;
 
 use crate::error::Error;
 use crate::SSHBuffer;
+use openssl::hash::MessageDigest;
 
 #[macro_use]
 mod utils;
@@ -34,6 +35,41 @@ impl Key {
             Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => {
                 key.fingerprint(hash_type)
             }
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format"
+            ))),
+        }
+    }
+
+    pub fn sign(&self, data: impl AsRef<[u8]>) -> Result<Vec<u8>, Error> {
+        match &self {
+            Key::Rsa(key) => {
+                key.sign(MessageDigest::sha256(), data)
+            },
+            Key::EcdsaP256(key) => {
+                let (r, s) = key.sign(MessageDigest::sha256(), data)?;
+                let mut buf = SSHBuffer::empty()?;
+                buf.put_string(r)?;
+                buf.put_string(s)?;
+
+                Ok(buf.to_vec())
+            },
+            Key::EcdsaP384(key) => {
+                let (r, s) = key.sign(MessageDigest::sha384(), data)?;
+                let mut buf = SSHBuffer::empty()?;
+                buf.put_string(r)?;
+                buf.put_string(s)?;
+
+                Ok(buf.to_vec())
+            },
+            Key::EcdsaP521(key) => {
+                let (r, s) = key.sign(MessageDigest::sha512(), data)?;
+                let mut buf = SSHBuffer::empty()?;
+                buf.put_string(r)?;
+                buf.put_string(s)?;
+
+                Ok(buf.to_vec())
+            },
             _ => Err(Error::UnsupportedKeyFormat(anyhow!(
                 "unsupported key format"
             ))),
