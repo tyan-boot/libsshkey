@@ -31,8 +31,12 @@ impl Key {
     pub fn fingerprint(&self, hash_type: HashType) -> Result<String, Error> {
         match &self {
             Key::Rsa(key) => key.fingerprint(hash_type),
-            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => key.fingerprint(hash_type),
-            _ => Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key format")))
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => {
+                key.fingerprint(hash_type)
+            }
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format"
+            ))),
         }
     }
 }
@@ -51,28 +55,6 @@ pub enum PEMFormat {
     Openssh,
 }
 
-pub trait KeyExt: Sized {
-    fn from_public_pem(pem: impl AsRef<[u8]>) -> Result<Self, Error>;
-
-    fn from_private_pem(
-        pem: impl AsRef<[u8]>,
-        phase: Option<impl AsRef<[u8]>>,
-    ) -> Result<Self, Error>;
-
-    fn fingerprint(&self, hash_type: HashType) -> Result<String, Error>;
-
-    fn to_public(&self) -> Result<String, Error>;
-
-    fn to_blob(&self) -> Result<SSHBuffer, Error>;
-
-    fn private_to_pem(
-        &self,
-        format: PEMFormat,
-        phase: Option<impl AsRef<[u8]>>,
-    ) -> Result<String, Error>;
-}
-
-
 pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
     let blob = blob.as_ref();
     let mut buf = SSHBuffer::new(blob.to_vec())?;
@@ -90,6 +72,9 @@ pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
             EcGroup::P521 => Ok(Key::EcdsaP521(ecdsa)),
         }
     } else {
-        Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key: {}", key_type)))
+        Err(Error::UnsupportedKeyFormat(anyhow!(
+            "unsupported key: {}",
+            key_type
+        )))
     }
 }

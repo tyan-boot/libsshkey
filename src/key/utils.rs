@@ -263,7 +263,7 @@ pub fn encrypt_openssh_private_pem(
 
             let mut kdf = SSHBuffer::empty()?;
             kdf.put_string(salt)?;
-            kdf.put_u32(16);
+            kdf.put_u32(16); // rounds
 
             buf.put_string(&*kdf)?;
         }
@@ -273,6 +273,9 @@ pub fn encrypt_openssh_private_pem(
             cipher = SSH_CIPHERS.get(cipher_name).expect("unreachable");
             key = Vec::with_capacity(0);
             let kdf = SSHBuffer::empty()?;
+            buf.put_string(cipher_name)?;
+            buf.put_string(kdf_name)?;
+
             buf.put_string(&*kdf)?;
         }
     }

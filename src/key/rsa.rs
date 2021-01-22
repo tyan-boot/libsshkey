@@ -1,6 +1,5 @@
 use bn::BigNum;
 use bytes::BufMut;
-use hex::ToHex;
 use openssl::bn;
 use openssl::bn::BigNumContext;
 use openssl::hash;
@@ -10,7 +9,7 @@ use openssl::rsa;
 
 use crate::buffer::SSHBuffer;
 use crate::error::Error;
-use crate::key::{HashType, KeyExt, PEMFormat};
+use crate::key::{HashType, PEMFormat};
 use crate::utils::to_asn1_vec;
 
 use super::utils::encrypt_openssh_private_pem;
@@ -44,10 +43,20 @@ impl Rsa {
             return Err(Error::InvalidKeyFormat(anyhow!("expect ssh-rsa")));
         }
 
-        let mut parts = pem.split(|it| *it == ' ' as u8).filter(|it| !it.is_empty()).rev().collect::<Vec<_>>();
-        let _prefix = parts.pop().ok_or(Error::InvalidKeyFormat(anyhow!("expect ssh-rsa")))?;
-        let pem = parts.pop().ok_or(Error::InvalidKeyFormat(anyhow!("expect pem encoded key")))?;
-        let comment = parts.pop().and_then(|it| String::from_utf8(it.to_vec()).ok());
+        let mut parts = pem
+            .split(|it| *it == ' ' as u8)
+            .filter(|it| !it.is_empty())
+            .rev()
+            .collect::<Vec<_>>();
+        let _prefix = parts
+            .pop()
+            .ok_or(Error::InvalidKeyFormat(anyhow!("expect ssh-rsa")))?;
+        let pem = parts
+            .pop()
+            .ok_or(Error::InvalidKeyFormat(anyhow!("expect pem encoded key")))?;
+        let comment = parts
+            .pop()
+            .and_then(|it| String::from_utf8(it.to_vec()).ok());
 
         let pem = Vec::from(base64::decode(pem)?);
 
@@ -295,7 +304,6 @@ impl Rsa {
 mod test {
     use anyhow::Result;
     use openssl::hash::MessageDigest;
-    use rand::RngCore;
 
     use crate::key::{HashType, PEMFormat};
 

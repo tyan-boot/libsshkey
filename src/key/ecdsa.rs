@@ -1,5 +1,5 @@
-use bytes::{BufMut, Bytes};
-use once_cell::sync::OnceCell;
+use bytes::BufMut;
+
 use openssl::bn::{BigNum, BigNumContext};
 use openssl::derive;
 use openssl::ec;
@@ -11,11 +11,10 @@ use openssl::{bn, hash};
 use crate::buffer::SSHBuffer;
 use crate::error::Error;
 use crate::key::utils::encrypt_openssh_private_pem;
-use crate::key::{HashType, KeyExt, PEMFormat};
+use crate::key::{HashType, PEMFormat};
 use crate::utils::to_asn1_vec;
-use hex::ToHex;
-use openssl::hash::MessageDigest;
 use openssl::ecdsa::EcdsaSig;
+use openssl::hash::MessageDigest;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum EcGroup {
@@ -386,7 +385,11 @@ impl Ecdsa {
         self.group
     }
 
-    pub fn sign(&self, type_: MessageDigest, input: impl AsRef<[u8]>) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    pub fn sign(
+        &self,
+        type_: MessageDigest,
+        input: impl AsRef<[u8]>,
+    ) -> Result<(Vec<u8>, Vec<u8>), Error> {
         let buf = input.as_ref();
         let hash = openssl::hash::hash(type_, buf)?;
 
@@ -394,14 +397,20 @@ impl Ecdsa {
             Inner::Private(pk) => {
                 let sig = EcdsaSig::sign(&hash, pk.as_ref())?;
                 Ok((sig.r().to_vec(), sig.s().to_vec()))
-            },
+            }
             Inner::Public(_) => {
                 return Err(Error::KeyTypeIncorrect(anyhow!("sign require private key")));
             }
         }
     }
 
-    pub fn verify(&self, type_: MessageDigest, input: impl AsRef<[u8]>, r: Vec<u8>, s: Vec<u8>) -> Result<bool, Error> {
+    pub fn verify(
+        &self,
+        type_: MessageDigest,
+        input: impl AsRef<[u8]>,
+        r: Vec<u8>,
+        s: Vec<u8>,
+    ) -> Result<bool, Error> {
         let hash = openssl::hash::hash(type_, input.as_ref())?;
 
         let r = BigNum::from_slice(&r)?;
@@ -410,7 +419,7 @@ impl Ecdsa {
         let sig = EcdsaSig::from_private_components(r, s)?;
         let check = match &self.inner {
             Inner::Private(pk) => sig.verify(&hash, pk.as_ref())?,
-            Inner::Public(pk) => sig.verify( &hash, pk.as_ref())?,
+            Inner::Public(pk) => sig.verify(&hash, pk.as_ref())?,
         };
 
         Ok(check)
@@ -421,8 +430,8 @@ impl Ecdsa {
 
 #[cfg(test)]
 mod test {
+    use super::{EcGroup, Ecdsa, HashType, KeyExt, PEMFormat};
     use anyhow::Result;
-    use super::{Ecdsa, EcGroup, HashType, KeyExt, PEMFormat};
     use openssl::hash::MessageDigest;
 
     const KEY_256: &'static str = include_str!("../../tests/ecdsa/ecdsa_256");

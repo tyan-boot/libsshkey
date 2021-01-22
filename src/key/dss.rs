@@ -10,6 +10,7 @@ enum Inner {
 }
 
 pub struct Dss {
+    #[allow(dead_code)]
     inner: Inner,
 }
 

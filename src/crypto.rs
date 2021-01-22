@@ -4,8 +4,11 @@ use std::collections::HashMap;
 
 const CFLAG_CBC: u32 = 1 << 0;
 const CFLAG_CHACHAPOLY: u32 = 1 << 1;
+#[allow(dead_code)]
 const CFLAG_AESCTR: u32 = 1 << 2;
+#[allow(dead_code)]
 const CFLAG_NONE: u32 = 1 << 3;
+#[allow(dead_code)]
 const CFLAG_INTERNAL: u32 = CFLAG_NONE;
 
 pub struct SSHCipher {
