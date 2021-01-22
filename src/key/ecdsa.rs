@@ -430,19 +430,22 @@ impl Ecdsa {
 
 #[cfg(test)]
 mod test {
-    use super::{EcGroup, Ecdsa, HashType, KeyExt, PEMFormat};
+    use super::{EcGroup, Ecdsa, HashType, PEMFormat};
     use anyhow::Result;
     use openssl::hash::MessageDigest;
 
     const KEY_256: &'static str = include_str!("../../tests/ecdsa/ecdsa_256");
+    const KEY_256_ENC: &'static str = include_str!("../../tests/ecdsa/ecdsa_256_enc");
     const KEY_256_PUB: &'static str = include_str!("../../tests/ecdsa/ecdsa_256.pub");
     const KEY_256_FIG: &'static str = "d2/OomSuIb8W4rrPTQE3yui35o6nlXJIzivYVbveHu4";
 
     const KEY_384: &'static str = include_str!("../../tests/ecdsa/ecdsa_384");
+    const KEY_384_ENC: &'static str = include_str!("../../tests/ecdsa/ecdsa_384_enc");
     const KEY_384_PUB: &'static str = include_str!("../../tests/ecdsa/ecdsa_384.pub");
     const KEY_384_FIG: &'static str = "YXyd4CCYGiawAepDxIFeY9GjH0LqHdHIL7nBnf6NOfE";
 
     const KEY_521: &'static str = include_str!("../../tests/ecdsa/ecdsa_521");
+    const KEY_521_ENC: &'static str = include_str!("../../tests/ecdsa/ecdsa_521_enc");
     const KEY_521_PUB: &'static str = include_str!("../../tests/ecdsa/ecdsa_521.pub");
     const KEY_521_FIG: &'static str = "HEnKR0vhaIBhIyz5AF2shR/v3Rs9Z9kvHjhZxw8mRNA";
 
@@ -454,6 +457,15 @@ mod test {
         let _ecdsa = Ecdsa::import_private_pem(KEY_256, PHASE_NONE)?;
         let _ecdsa = Ecdsa::import_private_pem(KEY_384, PHASE_NONE)?;
         let _ecdsa = Ecdsa::import_private_pem(KEY_521, PHASE_NONE)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn import_openssh_enc() -> Result<()> {
+        let _ecdsa = Ecdsa::import_private_pem(KEY_256_ENC, PHASE)?;
+        let _ecdsa = Ecdsa::import_private_pem(KEY_384_ENC, PHASE)?;
+        let _ecdsa = Ecdsa::import_private_pem(KEY_521_ENC, PHASE)?;
 
         Ok(())
     }
@@ -473,10 +485,35 @@ mod test {
     }
 
     #[test]
+    fn export_openssh_enc() -> Result<()> {
+        let ecdsa = Ecdsa::import_private_pem(KEY_256, PHASE_NONE)?;
+        let pem = ecdsa.export_private_pem(PEMFormat::Openssh, PHASE)?;
+        let _ecdsa = Ecdsa::import_private_pem(pem, PHASE)?;
+
+        let ecdsa = Ecdsa::import_private_pem(KEY_384, PHASE_NONE)?;
+        let pem = ecdsa.export_private_pem(PEMFormat::Openssh, PHASE)?;
+        let _ecdsa = Ecdsa::import_private_pem(pem, PHASE)?;
+
+        let ecdsa = Ecdsa::import_private_pem(KEY_521, PHASE_NONE)?;
+        let pem = ecdsa.export_private_pem(PEMFormat::Openssh, PHASE)?;
+        let _ecdsa = Ecdsa::import_private_pem(pem, PHASE)?;
+
+        Ok(())
+    }
+
+    #[test]
     fn export_public() -> Result<()> {
         let ecdsa = Ecdsa::import_private_pem(KEY_256, PHASE_NONE)?;
         let public = ecdsa.export_public_ssh()?;
         assert_eq!(public, KEY_256_PUB.trim());
+
+        let ecdsa = Ecdsa::import_private_pem(KEY_384, PHASE_NONE)?;
+        let public = ecdsa.export_public_ssh()?;
+        assert_eq!(public, KEY_384_PUB.trim());
+
+        let ecdsa = Ecdsa::import_private_pem(KEY_521, PHASE_NONE)?;
+        let public = ecdsa.export_public_ssh()?;
+        assert_eq!(public, KEY_521_PUB.trim());
 
         Ok(())
     }
@@ -488,6 +525,15 @@ mod test {
 
         assert_eq!(fingerprint, KEY_256_FIG);
 
+        let ecdsa = Ecdsa::import_private_pem(KEY_384, PHASE_NONE)?;
+        let fingerprint = ecdsa.fingerprint(HashType::SHA256)?;
+
+        assert_eq!(fingerprint, KEY_384_FIG);
+
+        let ecdsa = Ecdsa::import_private_pem(KEY_521, PHASE_NONE)?;
+        let fingerprint = ecdsa.fingerprint(HashType::SHA256)?;
+
+        assert_eq!(fingerprint, KEY_521_FIG);
         Ok(())
     }
 

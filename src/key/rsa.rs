@@ -313,10 +313,12 @@ mod test {
     const PHASE_NONE: Option<&str> = None;
 
     const KEY_2048: &'static str = include_str!("../../tests/rsa/rsa_2048");
+    const KEY_2048_ENC: &'static str = include_str!("../../tests/rsa/rsa_2048_enc");
     const KEY_2048_PUB: &'static str = include_str!("../../tests/rsa/rsa_2048.pub");
     const KEY_2048_FIG: &'static str = "ZiiPTpaXb59pK3KYx7hbRuxEKPwnSPSRWCZUtdw1hQQ";
 
     const KEY_4096: &'static str = include_str!("../../tests/rsa/rsa_4096");
+    const KEY_4096_ENC: &'static str = include_str!("../../tests/rsa/rsa_4096_enc");
     const KEY_4096_PUB: &'static str = include_str!("../../tests/rsa/rsa_4096.pub");
     const KEY_4096_FIG: &'static str = "UVlud9hZkLO0Md2GBk2jyguUVsNW7tQOMaIEkpff8Ik";
 
@@ -329,12 +331,33 @@ mod test {
     }
 
     #[test]
+    fn import_openssh_enc() -> Result<()> {
+        let _rsa = Rsa::import_private_pem(KEY_2048_ENC, PHASE)?;
+        let _rsa = Rsa::import_private_pem(KEY_4096_ENC, PHASE)?;
+
+        Ok(())
+    }
+
+    #[test]
     fn export_openssh() -> Result<()> {
         let rsa = Rsa::import_private_pem(KEY_2048, PHASE_NONE)?;
         let _pem = rsa.export_private_pem(PEMFormat::Openssh, PHASE_NONE)?;
 
         let rsa = Rsa::import_private_pem(KEY_4096, PHASE_NONE)?;
         let _pem = rsa.export_private_pem(PEMFormat::Openssh, PHASE_NONE)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn export_openssh_enc() -> Result<()> {
+        let rsa = Rsa::import_private_pem(KEY_2048, PHASE_NONE)?;
+        let pem = rsa.export_private_pem(PEMFormat::Openssh, PHASE)?;
+        let _rsa = Rsa::import_private_pem(pem, PHASE)?;
+
+        let rsa = Rsa::import_private_pem(KEY_4096, PHASE_NONE)?;
+        let pem = rsa.export_private_pem(PEMFormat::Openssh, PHASE_NONE)?;
+        let _rsa = Rsa::import_private_pem(pem, PHASE)?;
 
         Ok(())
     }
