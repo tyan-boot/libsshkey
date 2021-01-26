@@ -84,6 +84,40 @@ impl SSHBuffer {
         Ok(s)
     }
 
+    pub fn get_list(&mut self) -> Result<Vec<String>, Error> {
+        let list = self.get_string()?;
+        let list: Result<Vec<String>, _> = list
+            .split(|it| *it == ',' as u8)
+            .map(|it| String::from_utf8(it.to_vec()))
+            .collect();
+
+        Ok(list?)
+    }
+
+    pub fn put_list(&mut self, list: Vec<impl AsRef<[u8]>>) -> Result<(), Error> {
+        let list: Result<Vec<_>, _> = list
+            .iter()
+            .map(|it| it.as_ref())
+            .map(|it| std::str::from_utf8(it))
+            .collect();
+        let list = list?;
+
+        let amount = list.len();
+        let len = list.iter().map(|it| it.len()).sum::<usize>();
+        let len = len + amount - 1;
+
+        self.put_u32(len as u32);
+
+        for (idx, item) in list.iter().enumerate() {
+            self.buf.put(item.as_bytes());
+            if idx != amount - 1 {
+                self.buf.put_u8(',' as u8);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn put_raw(&mut self, buf: impl AsRef<[u8]>) -> Result<(), Error> {
         self.buf.put(buf.as_ref());
 
@@ -116,5 +150,22 @@ impl SSHBuffer {
 
     pub fn into_bytes(self) -> Result<Bytes, Error> {
         Ok(self.buf.freeze())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::error::Error;
+    use crate::SSHBuffer;
+
+    #[test]
+    fn list() -> Result<(), Error> {
+        let mut buf = SSHBuffer::empty()?;
+        buf.put_list(vec!["a", "b", "c"])?;
+
+        let list = buf.get_list()?;
+
+        assert_eq!(list, vec!["a", "b", "c"]);
+        Ok(())
     }
 }
