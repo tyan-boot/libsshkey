@@ -1,10 +1,11 @@
+use openssl::hash::MessageDigest;
+
 pub use dss::Dss;
-pub use ecdsa::{EcGroup, Ecdsa};
+pub use ecdsa::{Ecdsa, EcGroup};
 pub use rsa::Rsa;
 
 use crate::error::Error;
 use crate::SSHBuffer;
-use openssl::hash::MessageDigest;
 
 #[macro_use]
 mod utils;
@@ -45,7 +46,7 @@ impl Key {
         match &self {
             Key::Rsa(key) => {
                 key.sign(MessageDigest::sha256(), data)
-            },
+            }
             Key::EcdsaP256(key) => {
                 let (r, s) = key.sign(MessageDigest::sha256(), data)?;
                 let mut buf = SSHBuffer::empty()?;
@@ -53,7 +54,7 @@ impl Key {
                 buf.put_string(s)?;
 
                 Ok(buf.to_vec())
-            },
+            }
             Key::EcdsaP384(key) => {
                 let (r, s) = key.sign(MessageDigest::sha384(), data)?;
                 let mut buf = SSHBuffer::empty()?;
@@ -61,7 +62,7 @@ impl Key {
                 buf.put_string(s)?;
 
                 Ok(buf.to_vec())
-            },
+            }
             Key::EcdsaP521(key) => {
                 let (r, s) = key.sign(MessageDigest::sha512(), data)?;
                 let mut buf = SSHBuffer::empty()?;
@@ -69,7 +70,31 @@ impl Key {
                 buf.put_string(s)?;
 
                 Ok(buf.to_vec())
-            },
+            }
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format"
+            ))),
+        }
+    }
+
+    pub fn export_public_ssh(&self) -> Result<String, Error> {
+        match &self {
+            Key::Rsa(key) => key.export_public_ssh(),
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => {
+                key.export_public_ssh()
+            }
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format"
+            ))),
+        }
+    }
+
+    pub fn export_private_pem(&self) -> Result<String, Error> {
+        match &self {
+            Key::Rsa(key) => key.export_private_pem(PEMFormat::Openssh, None::<&str>),
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => {
+                key.export_private_pem(PEMFormat::Openssh, None::<&str>)
+            }
             _ => Err(Error::UnsupportedKeyFormat(anyhow!(
                 "unsupported key format"
             ))),
