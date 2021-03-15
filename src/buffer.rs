@@ -64,7 +64,7 @@ impl SSHBuffer {
         Ok(())
     }
 
-    pub fn peek_string(&mut self) -> Result<String, Error> {
+    pub fn peek_string(&self) -> Result<String, Error> {
         let len = self
             .buf
             .get(..4)

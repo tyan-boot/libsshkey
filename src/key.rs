@@ -5,6 +5,7 @@ pub use ecdsa::{Ecdsa, EcGroup};
 pub use rsa::Rsa;
 
 use crate::error::Error;
+use crate::key::utils::decrypt_openssh_private_pem;
 use crate::SSHBuffer;
 
 #[macro_use]
@@ -18,6 +19,10 @@ const OPENSSH_BEGIN: &'static str = "-----BEGIN OPENSSH PRIVATE KEY-----\n";
 // no \n
 const OPENSSH_END: &'static str = "-----END OPENSSH PRIVATE KEY-----";
 const OPENSSH_AUTH_MAGIC: &'static str = "openssh-key-v1";
+
+const RSA_BEGIN: &'static str = "-----BEGIN RSA PRIVATE KEY-----\n";
+const EC_BEGIN: &'static str = "-----BEGIN EC PRIVATE KEY-----\n";
+
 
 #[derive(Debug)]
 pub enum Key {
@@ -116,9 +121,17 @@ pub enum PEMFormat {
     Openssh,
 }
 
+fn wrap_ec(key: Ecdsa) -> Key {
+    match key.group() {
+        EcGroup::P256 => Key::EcdsaP256(key),
+        EcGroup::P384 => Key::EcdsaP384(key),
+        EcGroup::P521 => Key::EcdsaP521(key),
+    }
+}
+
 pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
     let blob = blob.as_ref();
-    let mut buf = SSHBuffer::new(blob.to_vec())?;
+    let buf = SSHBuffer::new(blob.to_vec())?;
     let key_type = buf.peek_string()?;
 
     if key_type.starts_with("ssh-rsa") {
@@ -127,15 +140,40 @@ pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
     } else if key_type.starts_with("ecdsa-sha2-") {
         let ecdsa = Ecdsa::import_public_blob(buf)?;
 
-        match ecdsa.group() {
-            EcGroup::P256 => Ok(Key::EcdsaP256(ecdsa)),
-            EcGroup::P384 => Ok(Key::EcdsaP384(ecdsa)),
-            EcGroup::P521 => Ok(Key::EcdsaP521(ecdsa)),
-        }
+        Ok(wrap_ec(ecdsa))
     } else {
         Err(Error::UnsupportedKeyFormat(anyhow!(
             "unsupported key: {}",
             key_type
         )))
     }
+}
+
+pub fn parse_private_pem(pem: impl AsRef<[u8]>, phase: Option<impl AsRef<[u8]>>) -> Result<Key, Error> {
+    let pem = pem.as_ref();
+
+    if pem.starts_with(OPENSSH_BEGIN.as_bytes()) {
+        let (_, decrypt) = decrypt_openssh_private_pem(pem, phase)?;
+        let tname = decrypt.peek_string()?;
+
+        if tname == "ssh-rsa" {
+            let key = Rsa::import_private_blob(decrypt)?;
+            return Ok(Key::Rsa(key));
+        } else if tname.starts_with("ecdsa-sha2-") {
+            let key = Ecdsa::import_private_blob(decrypt)?;
+            return Ok(wrap_ec(key));
+        } else {
+            return Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key format {}", tname)));
+        }
+    } else if pem.starts_with(RSA_BEGIN.as_bytes()) {
+        let key = Rsa::import_private_pem(pem, phase)?;
+
+        return Ok(Key::Rsa(key));
+    } else if pem.starts_with(EC_BEGIN.as_bytes()) {
+        let key = Ecdsa::import_private_pem(pem, phase)?;
+
+        return Ok(wrap_ec(key));
+    }
+
+    Err(Error::InvalidKeyFormat(anyhow!("unknown key format")))
 }
