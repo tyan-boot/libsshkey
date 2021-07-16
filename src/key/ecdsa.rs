@@ -323,22 +323,18 @@ impl Ecdsa {
             }
         };
 
-        let mut deriver = derive::Deriver::new(&pk)?;
-
         match &rhs.inner {
-            Inner::Private(pk) => {
-                let rhs = PKey::from_ec_key(pk.clone())?;
+            Inner::Private(rhs) => {
+                let rhs = PKey::from_ec_key(rhs.clone())?;
+                let mut deriver = derive::Deriver::new(&pk)?;
                 deriver.set_peer(&rhs)?;
-                let psk = deriver.derive_to_vec()?;
-                drop(deriver);
-                Ok(psk)
+                Ok(deriver.derive_to_vec()?)
             }
-            Inner::Public(pk) => {
-                let rhs = PKey::from_ec_key(pk.clone())?;
+            Inner::Public(rhs) => {
+                let rhs = PKey::from_ec_key(rhs.clone())?;
+                let mut deriver = derive::Deriver::new(&pk)?;
                 deriver.set_peer(&rhs)?;
-                let psk = deriver.derive_to_vec()?;
-                drop(deriver);
-                Ok(psk)
+                Ok(deriver.derive_to_vec()?)
             }
         }
     }
