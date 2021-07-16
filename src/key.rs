@@ -1,7 +1,7 @@
 use openssl::hash::MessageDigest;
 
 pub use dss::Dss;
-pub use ecdsa::{Ecdsa, EcGroup};
+pub use ecdsa::{EcGroup, Ecdsa};
 pub use rsa::Rsa;
 
 use crate::error::Error;
@@ -22,7 +22,6 @@ const OPENSSH_AUTH_MAGIC: &'static str = "openssh-key-v1";
 
 const RSA_BEGIN: &'static str = "-----BEGIN RSA PRIVATE KEY-----\n";
 const EC_BEGIN: &'static str = "-----BEGIN EC PRIVATE KEY-----\n";
-
 
 #[derive(Debug)]
 pub enum Key {
@@ -49,9 +48,7 @@ impl Key {
 
     pub fn sign(&self, data: impl AsRef<[u8]>) -> Result<Vec<u8>, Error> {
         match &self {
-            Key::Rsa(key) => {
-                key.sign(MessageDigest::sha256(), data)
-            }
+            Key::Rsa(key) => key.sign(MessageDigest::sha256(), data),
             Key::EcdsaP256(key) => {
                 let (r, s) = key.sign(MessageDigest::sha256(), data)?;
                 let mut buf = SSHBuffer::empty()?;
@@ -105,6 +102,26 @@ impl Key {
             ))),
         }
     }
+
+    pub fn export_public_blob(&self) -> Result<SSHBuffer, Error> {
+        match &self {
+            Key::Rsa(key) => key.export_public_blob(),
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => {
+                key.export_public_blob()
+            }
+            _ => Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format"
+            ))),
+        }
+    }
+
+    pub fn comment(&self) -> Option<&str> {
+        match &self {
+            Key::Rsa(key) => key.comment(),
+            Key::EcdsaP256(key) | Key::EcdsaP384(key) | Key::EcdsaP521(key) => key.comment(),
+            _ => None,
+        }
+    }
 }
 
 pub enum HashType {
@@ -149,7 +166,10 @@ pub fn parse_public_blob(blob: impl AsRef<[u8]>) -> Result<Key, Error> {
     }
 }
 
-pub fn parse_private_pem(pem: impl AsRef<[u8]>, phase: Option<impl AsRef<[u8]>>) -> Result<Key, Error> {
+pub fn parse_private_pem(
+    pem: impl AsRef<[u8]>,
+    phase: Option<impl AsRef<[u8]>>,
+) -> Result<Key, Error> {
     let pem = pem.as_ref();
 
     if pem.starts_with(OPENSSH_BEGIN.as_bytes()) {
@@ -163,7 +183,10 @@ pub fn parse_private_pem(pem: impl AsRef<[u8]>, phase: Option<impl AsRef<[u8]>>)
             let key = Ecdsa::import_private_blob(decrypt)?;
             return Ok(wrap_ec(key));
         } else {
-            return Err(Error::UnsupportedKeyFormat(anyhow!("unsupported key format {}", tname)));
+            return Err(Error::UnsupportedKeyFormat(anyhow!(
+                "unsupported key format {}",
+                tname
+            )));
         }
     } else if pem.starts_with(RSA_BEGIN.as_bytes()) {
         let key = Rsa::import_private_pem(pem, phase)?;
