@@ -14,13 +14,13 @@ use crate::utils::to_asn1_vec;
 
 use super::utils::encrypt_openssh_private_pem;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Inner {
     Private(rsa::Rsa<Private>),
     Public(rsa::Rsa<Public>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Rsa {
     inner: Inner,
     comment: Option<String>,

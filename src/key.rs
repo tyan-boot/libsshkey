@@ -23,7 +23,7 @@ const OPENSSH_AUTH_MAGIC: &'static str = "openssh-key-v1";
 const RSA_BEGIN: &'static str = "-----BEGIN RSA PRIVATE KEY-----\n";
 const EC_BEGIN: &'static str = "-----BEGIN EC PRIVATE KEY-----\n";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Key {
     Dss,
     Rsa(Rsa),

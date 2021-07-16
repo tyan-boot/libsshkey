@@ -1,18 +1,18 @@
 use bytes::BufMut;
-use openssl::{bn, hash};
 use openssl::bn::{BigNum, BigNumContext};
 use openssl::derive;
 use openssl::ec;
-use openssl::ec::{PointConversionForm, EcKey};
+use openssl::ec::{EcKey, PointConversionForm};
 use openssl::ecdsa::EcdsaSig;
 use openssl::hash::MessageDigest;
 use openssl::nid;
 use openssl::pkey::{PKey, Private, Public};
+use openssl::{bn, hash};
 
 use crate::buffer::SSHBuffer;
 use crate::error::Error;
-use crate::key::{HashType, PEMFormat};
 use crate::key::utils::encrypt_openssh_private_pem;
+use crate::key::{HashType, PEMFormat};
 use crate::utils::to_asn1_vec;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -73,13 +73,13 @@ impl EcGroup {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Inner {
     Private(ec::EcKey<Private>),
     Public(ec::EcKey<Public>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ecdsa {
     inner: Inner,
     group: EcGroup,
@@ -424,7 +424,7 @@ impl Ecdsa {
             Inner::Private(pk) => {
                 let pk = EcKey::from_public_key(pk.group(), pk.public_key())?;
                 sig.verify(&hash, pk.as_ref())?
-            },
+            }
             Inner::Public(pk) => sig.verify(&hash, pk.as_ref())?,
         };
 
@@ -439,7 +439,7 @@ mod test {
     use anyhow::Result;
     use openssl::hash::MessageDigest;
 
-    use super::{Ecdsa, EcGroup, HashType, PEMFormat};
+    use super::{EcGroup, Ecdsa, HashType, PEMFormat};
 
     const KEY_256: &'static str = include_str!("../../tests/ecdsa/ecdsa_256");
     const KEY_256_ENC: &'static str = include_str!("../../tests/ecdsa/ecdsa_256_enc");
