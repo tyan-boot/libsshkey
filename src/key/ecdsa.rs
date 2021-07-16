@@ -329,12 +329,16 @@ impl Ecdsa {
             Inner::Private(pk) => {
                 let rhs = PKey::from_ec_key(pk.clone())?;
                 deriver.set_peer(&rhs)?;
-                Ok(deriver.derive_to_vec()?)
+                let psk = deriver.derive_to_vec()?;
+                drop(deriver);
+                Ok(psk)
             }
             Inner::Public(pk) => {
                 let rhs = PKey::from_ec_key(pk.clone())?;
                 deriver.set_peer(&rhs)?;
-                Ok(deriver.derive_to_vec()?)
+                let psk = deriver.derive_to_vec()?;
+                drop(deriver);
+                Ok(psk)
             }
         }
     }
@@ -562,6 +566,16 @@ mod test {
         let _ecdsa = Ecdsa::generate(EcGroup::P256, None)?;
         let _ecdsa = Ecdsa::generate(EcGroup::P384, None)?;
         let _ecdsa = Ecdsa::generate(EcGroup::P521, None)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive() -> Result<()> {
+        let a = Ecdsa::generate(EcGroup::P256, None)?;
+        let b = Ecdsa::generate(EcGroup::P256, None)?;
+
+        let psk = a.derive(&b)?;
 
         Ok(())
     }
